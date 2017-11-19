@@ -1,0 +1,61 @@
+%preyNN for one neural network
+%preyPosRecord=timeSlapce*nAgents*2
+function [timeElapsed] = Compete( preyNN, nPreyAgents, nPreyNeighbors, maxPreyTurningAngle, preySpeed,...
+                               nPreyNNInputs, nPreyNNHidden, nPreyNNOutputs, ...
+                               predatorNN, nPredatorAgents, nPredatorNeighbors, maxPredatorTurningAngle, predatorSpeed, ...
+                               nPredatorNNInputs, nPredatorNNHidden, nPredatorNNOutputs, ...
+                               deltaT, maxTime, fieldSize, captureDistance)
+                           
+% preyPosRecord=zeros(maxTime,nPreyAgents,2);
+
+% runs one full simulation based on prey and predator chromosomes and
+% simulation parameters, returning the time elapsed before one of the stop
+% conditions was met
+
+[preyT1, preyW12, preyT2, preyW23] = DecodeChromosome(preyNN, nPreyNNInputs, nPreyNNHidden, nPreyNNOutputs);
+[predatorT1, predatorW12, predatorT2, predatorW23] = DecodeChromosome(predatorNN, nPredatorNNInputs, nPredatorNNHidden, nPredatorNNOutputs);
+
+[preyPos, preyVel] = RandomSpawn(nPreyAgents, fieldSize, [3/4 1/2]);
+[predatorPos, predatorVel] = RandomSpawn(nPredatorAgents, fieldSize, [1/4 1/2]);
+
+figure;
+
+timeElapsed = 1;
+captured = false;
+while (timeElapsed <= maxTime) && ~captured
+    
+    plot(preyPos(:,1),preyPos(:,2),'g.');
+    axis([1 100 1 100]);
+    hold on;
+    plot(predatorPos(:,1),predatorPos(:,2),'r*');
+    axis([1 100 1 100]);
+    pause(2);
+    
+    %should also plot the speed direction use the arrow plot function
+    
+    [preyPredatorParameters, predatorPreyParameters] = GetFoeParameters(preyPos, preyVel, predatorPos, predatorVel, nPreyAgents, nPredatorAgents, nPredatorNeighbors);
+    preyPreyParameters = GetFriendParameters(preyPos, preyVel, nPreyAgents, nPreyNeighbors);
+    preyInputVectors = [preyPreyParameters preyPredatorParameters];
+    if nPredatorAgents > 1
+        predatorPredatorParameters = GetFriendParameters(predatorPos, predatorVel, nPredatorAgents, nPredatorAgents-1);
+        predatorInputVectors = [predatorPreyParameters predatorPredatorParameters];
+    else
+        predatorInputVectors = predatorPreyParameters;
+    end
+    
+    [preyPos, preyVel] = UpdateAgentState(preyPos, preyVel, preyInputVectors, preyT1, preyW12, preyT2, preyW23, maxPreyTurningAngle, preySpeed, deltaT, fieldSize);
+    [preyPolarization, preyAngularMomentum] = GetFlockStats(preyPos, preyVel, nPreyAgents)
+    
+    [predatorPos, predatorVel] = UpdateAgentState(predatorPos, predatorVel, predatorInputVectors, predatorT1, predatorW12, predatorT2, predatorW23, maxPredatorTurningAngle, predatorSpeed, deltaT, fieldSize);
+    [predatorPolarization, predatorAngularMomentum] = GetFlockStats(predatorPos, predatorVel, nPredatorAgents)
+    
+    captured = CheckCaptured(preyPos, predatorPos, captureDistance);
+    if captured==true
+        title(['Captured at ',num2str(timeElapsed),' timeSteps']);
+        pause(10);
+    else
+        title(['preySpeed:',num timeSteps']);
+    end
+    timeElapsed = timeElapsed + deltaT;
+%     clf;
+end
